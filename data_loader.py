@@ -2,8 +2,8 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 import glob
-
-
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 
 class CityscapeDataset(Dataset):
 
@@ -28,7 +28,13 @@ class Bdd100kDataset(Dataset):
                 self.images_path[label.split("/")[-1].split("_")[0]] = (self.images_path[label.split("/")[-1].split("_")[0]][0],label)     
         self.images_path = list(self.images_path.values())
     def __getitem__(self, item):
-        return self.images_path[item]
+        img=mpimg.imread(self.images_path[item][0]).transpose((2,0,1))
+        label = None
+        if self.images_path[item][1] != None:
+            label = mpimg.imread(self.images_path[item][1]).transpose((2,0,1))
+
+        #TODO data augmentation
+        return img, label
 
     def __len__(self):
         return len(self.images_path)
@@ -41,11 +47,4 @@ dataset = {
 
 path = "/home/pedro/Documents/Datasets/bdd100k/seg/"
 dataset = Bdd100kDataset(path)
-print(len(dataset))
-print(dataset[1])
-dataset = Bdd100kDataset(path,"val")
-print(len(dataset))
-print(dataset[1])
-dataset = Bdd100kDataset(path,"test")
-print(len(dataset))
-print(dataset[1])
+
