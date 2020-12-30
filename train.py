@@ -2,17 +2,17 @@ import torch
 import data_loader
 
 
-def train():
+def train(net):
 
     path = "/home/pedro/Documents/Datasets/bdd100k/seg/"
 
     trainloader = torch.utils.data.DataLoader(data_loader.Bdd100kDataset(path,mode="train"), batch_size=8,
                                             shuffle=True, num_workers=2)
 
-    testloader = torch.utils.data.DataLoader(data_loader.Bdd100kDataset(path,mode="val"), batch_size=8,
+    validationloader = torch.utils.data.DataLoader(data_loader.Bdd100kDataset(path,mode="val"), batch_size=8,
                                             shuffle=False, num_workers=2)
 
-    optimizer = torch.optim.Adam(model.parameters(),lr=1e-3)
+    optimizer = torch.optim.Adam(net.parameters(),lr=1e-4)
 
     for epoch in range(30):  # loop over the dataset multiple times
 
@@ -36,6 +36,8 @@ def train():
                 print('[%d, %5d] loss: %.3f' %
                     (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
+        torch.save(net, "./model.pth")
+
 
 def soft_dice(y,target,epsilon=1e-6):
     numerator = 2. * torch.sum(y*target,dim=tuple(range(1,len(target.shape)-1)))
