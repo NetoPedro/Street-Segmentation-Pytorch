@@ -4,7 +4,9 @@ from torch.utils.data import Dataset
 import glob
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
-
+from PIL import Image
+import numpy as np
+import cv2
 class CityscapeDataset(Dataset):
 
     def __init__(self):
@@ -18,8 +20,10 @@ class CityscapeDataset(Dataset):
 
 class Bdd100kDataset(Dataset):
 
-    def __init__(self,path,mode="train"):
+    def __init__(self,path,mode="train",transforms = None,):
+        super(Bdd100kDataset,self).__init__()
         self.images_path = dict()
+        self.transforms = transforms
         for image in glob.glob(path+"images/"+mode+"/*"):
             self.images_path[image.split("/")[-1].split(".")[0]] = (image,None)
 
@@ -28,12 +32,16 @@ class Bdd100kDataset(Dataset):
                 self.images_path[label.split("/")[-1].split("_")[0]] = (self.images_path[label.split("/")[-1].split("_")[0]][0],label)     
         self.images_path = list(self.images_path.values())
     def __getitem__(self, item):
-        img=mpimg.imread(self.images_path[item][0]).transpose((2,0,1))
+        img=Image.fromarray(mpimg.imread(self.images_path[item][0]) )
         label = None
         if self.images_path[item][1] != None:
-            label = mpimg.imread(self.images_path[item][1]).transpose((2,0,1))
-            label = torch.nn.functional.one_hot(label,40)
-
+            label = Image.fromarray((mpimg.imread(self.images_path[item][1])* 255).astype(np.uint8))
+            label = label.convert("RGB")
+        if self.transforms != None:
+            img = self.transforms(img)
+            if label != None:
+                
+                label = self.transforms(label)
         #TODO data augmentation
         return img, label
 
