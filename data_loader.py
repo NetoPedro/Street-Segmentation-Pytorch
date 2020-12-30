@@ -32,6 +32,7 @@ class Bdd100kDataset(Dataset):
         label = None
         if self.images_path[item][1] != None:
             label = mpimg.imread(self.images_path[item][1]).transpose((2,0,1))
+            label = torch.nn.functional.one_hot(label,40)
 
         #TODO data augmentation
         return img, label
