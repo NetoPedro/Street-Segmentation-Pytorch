@@ -70,20 +70,15 @@ class UNet(nn.Module):
         self.pool = nn.MaxPool2d(2)  
     def forward(self,x):
         x1 = self.sequential1(x)
-        print(x1.shape)
         x2 = self.sequential2(self.pool(x1))
-        print(x2.shape)
         x3 = self.sequential3(self.pool(x2))
-        print(x3.shape)
         x4 = self.sequential4(self.pool(x3))
-        print(x4.shape)
         x5 = self.sequential5(self.pool(x4))
-        print(x5.shape)
         x5 = self.sequential6(x5,x4)
 
         x5 = self.sequential7(x5,x3)
         x5 = self.sequential8(x5,x2)
         x5 = self.sequential9(x5,x1)
         x6 = self.final_conv(x5)
-        return x6
+        return torch.nn.functional.softmax(x6,dim=1)
 
