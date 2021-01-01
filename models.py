@@ -33,7 +33,7 @@ class UNetBlockB(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(channel_in,channel_in//2,2,stride=2,padding=1)
             self.sequential1 = torch.nn.Sequential(
-                nn.Conv2d(channel_in,channel_out,3,padding=1),
+                nn.Conv2d(channel_in//2,channel_out,3,padding=1),
                 nn.BatchNorm2d(channel_out),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(channel_out,channel_out,3,padding=1),
@@ -46,7 +46,7 @@ class UNetBlockB(nn.Module):
         diffX = x2.size()[3] - x.size()[3]
         x = torch.nn.functional.pad(x, [diffX // 2, diffX - diffX // 2,
                         diffY // 2, diffY - diffY // 2])
-        x= torch.cat((x,x2), dim = 1)
+        x= x + x2
         return self.sequential1(x)
 
 
@@ -80,5 +80,6 @@ class UNet(nn.Module):
         x5 = self.sequential8(x5,x2)
         x5 = self.sequential9(x5,x1)
         x6 = self.final_conv(x5)
-        return torch.nn.functional.softmax(x6,dim=1)
+        return x6
+        #return torch.nn.functional.softmax(x6,dim=1)
 

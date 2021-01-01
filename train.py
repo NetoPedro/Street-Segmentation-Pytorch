@@ -5,35 +5,41 @@ import numpy as np
 from PIL import Image, ImageDraw
 import cv2
 import matplotlib.pyplot as plt
+import albumentations as A
+import albumentations.augmentations.functional as F
+from albumentations.pytorch import ToTensorV2
 def train(net):
     
     net.cuda()
     net.train()
-
+    unorm = UnNormalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
     data_transforms = {
-    'train': transforms.Compose([
-        transforms.Resize((720,1280)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        #transforms.Normalize([0.5, 0.5, 0.5], [0.1, 0.1, 0.1])
-    ]),
-    'val': transforms.Compose([
-        transforms.Resize((720,1280)),
-        #transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        #transforms.Normalize([0.5, 0.5, 0.5], [0.1, 0.1, 0.1])
-    ]),
+    'train': A.Compose(
+    [
+        #A.PadIfNeeded(min_height=500, min_width=1000),
+        #A.RandomCrop(500, 1000),
+        A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=15, p=0.5),
+        A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
+        A.RandomBrightnessContrast(p=0.5),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),]),
+
+    'val': A.Compose(
+    [   #A.PadIfNeeded(min_height=500, min_width=1000),
+        #A.CenterCrop(500, 1000),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),]),
     }
 
     path = "/home/pedro/Documents/Datasets/bdd100k/seg/"
 
     trainloader = torch.utils.data.DataLoader(data_loader.Bdd100kDataset(path,mode="train",transforms=data_transforms["train"]), batch_size=1,
-                                            shuffle=True, num_workers=1)
+                                            shuffle=True, num_workers=4)
 
     validationloader = torch.utils.data.DataLoader(data_loader.Bdd100kDataset(path,mode="val",transforms=data_transforms["val"]), batch_size=1,
                                             shuffle=False, num_workers=2)
 
-    optimizer = torch.optim.Adam(net.parameters(),lr=1e-3)
+    optimizer = torch.optim.Adam(net.parameters(),lr=1e-2)
     print(len(trainloader))
     size = len(trainloader)
     for epoch in range(30):  # loop over the dataset multiple times
@@ -49,17 +55,19 @@ def train(net):
 
             # forward + backward + optimize
             outputs = net(inputs)
-            loss = soft_dice(outputs, labels)
+            loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
             # print statistics
             running_loss += loss.item()
-            if i % 200 == 199:    # print every 2000 mini-batches
+            if i % 800 == 799:    # print every 2000 mini-batches
                 print('[%d, %5d] loss: %.3f ' %
-                    (epoch + 1, i + 1, running_loss / 200))
+                    (epoch + 1, i + 1, running_loss / 800))
                 running_loss = 0.0
-                display_prediction(ipt[0,:,:,:],outputs[0,:,:,:].cpu().detach(),epoch,i)
+                unormed = unorm(ipt[0,:,:,:])
+                display_prediction(unormed,unorm(outputs[0,:,:,:].cpu().detach()),epoch,i)
+                display_prediction(unormed,target[0,:,:,:],epoch,i+1)
                 
         torch.save(net, "./model.pth")
         
@@ -76,8 +84,8 @@ def train(net):
                 seen_images +=ipt.shape[0]
                 # print statistics
                 running_loss += loss.item() *ipt.shape[0]
-                if i % 200 == 0:
-                    display_prediction(ipt[0,:,:,:],outputs[0,:,:,:].cpu(),epoch,i,train=False)
+                if i % 600 == 0:
+                    display_prediction(unorm(ipt[0,:,:,:]),unorm(outputs[0,:,:,:].cpu()),epoch,i,train=False)
                     #trans(torch.squeeze(outputs[0,:,:,:])).show()
                     #trans(torch.squeeze(labels[0,:,:,:])).show()
                 #video.write(cv2.cvtColor(np.array(trans(torch.squeeze(outputs[0,:,:,:]))), cv2.COLOR_RGB2BGR)) 
@@ -85,20 +93,57 @@ def train(net):
                     (epoch + 1, running_loss / seen_images))
 
 def criterion(y,target,epsilon=1e-6):
-    cel = nn.CrossEntropyLoss()
-    soft_dice(y,target,epsilon) * cel(y,target)
+    cel = torch.nn.CrossEntropyLoss()
+    target = torch.argmax(target,dim=1)
+    return 0.6 * soft_dice(y,target,epsilon) + 0.4 * cel(y,target)
 
-def soft_dice(y,target,epsilon=1e-6):
-    numerator = 2. * torch.sum(y*target,dim=tuple(range(1,len(target.shape))))
-    denominator = torch.sum(torch.square(y) + torch.square(target),dim=tuple(range(1,len(target.shape))))
-    return 1 - torch.mean((numerator+epsilon)/(denominator+epsilon))
+def soft_dice(y,target,eps=1e-6):
+    """
+    https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py#L131-L175
+    """
+    num_classes = y.shape[1]
+    true_1_hot = torch.eye(num_classes)[target.squeeze(1)]
+    true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
+    probas = torch.nn.functional.softmax(y, dim=1)
+    true_1_hot = true_1_hot.type(y.type())
+    dims = (0,) + tuple(range(2, target.ndimension()))
+    intersection = torch.sum(probas * true_1_hot, dims)
+    cardinality = torch.sum(probas + true_1_hot, dims)
+    dice_loss = (2. * intersection / (cardinality + eps)).mean()
+    return (1 - dice_loss)
 
 
-def dice_score(y,target,epsilon=1e-6):
-    numerator = 2. * torch.sum(y*target,dim=tuple(range(1,len(target.shape))))
-    denominator = torch.sum(torch.square(y) + torch.square(target),dim=tuple(range(1,len(target.shape))))
-    return torch.mean((numerator+epsilon)/(denominator+epsilon))
+def dice_score(y,target,eps=1e-6):
+    num_classes = y.shape[1]
+    target = torch.argmax(target,dim=1)
+    true_1_hot = torch.eye(num_classes)[target.squeeze(1)]
+    true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
+    probas = torch.nn.functional.softmax(y, dim=1)
+    true_1_hot = true_1_hot.type(y.type())
+    dims = (0,) + tuple(range(2, target.ndimension()))
+    intersection = torch.sum(probas * true_1_hot, dims)
+    cardinality = torch.sum(probas + true_1_hot, dims)
+    dice_loss = (2. * intersection / (cardinality + eps)).mean()
+    return dice_loss
 
+
+
+class UnNormalize(object):
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+        Returns:
+            Tensor: Normalized image.
+        """
+        for t, m, s in zip(tensor, self.mean, self.std):
+            t.mul_(s).add_(m)
+            # The normalize code -> t.sub_(m).div_(s)
+        return tensor
 
 
 

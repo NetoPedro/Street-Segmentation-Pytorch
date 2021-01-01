@@ -24,7 +24,7 @@ class Bdd100kDataset(Dataset):
     def __init__(self,path,mode="train",transforms = None):
         super(Bdd100kDataset,self).__init__()
         self.images_path = dict()
-        self.transforms = transforms
+        self.transform = transforms
         for image in glob.glob(path+"images/"+mode+"/*"):
             self.images_path[image.split("/")[-1].split(".")[0]] = (image,None)
 
@@ -34,7 +34,7 @@ class Bdd100kDataset(Dataset):
         self.images_path = list(self.images_path.values())
         self.set_blue = set()
     def __getitem__(self, item):
-        img=Image.fromarray(mpimg.imread(self.images_path[item][0]) )
+        img=mpimg.imread(self.images_path[item][0])
         label = None
         if self.images_path[item][1] != None:
             
@@ -47,14 +47,15 @@ class Bdd100kDataset(Dataset):
             
             #label = Image.fromarray(image)
             #label = label.convert("RGB")
-        if self.transforms != None:
-            img = self.transforms(img)
-            if not(label is None):
-
-                label = torch.tensor(np.transpose(label,(2,0,1)))
-                #print(torch.max(label))
-        #TODO data augmentation
-        return img, label
+        if self.transform is not None:
+            if not(label is None):  
+                transformed = self.transform(image=img, mask=label)
+                img = transformed["image"]
+                label = transformed["mask"]
+            else:
+                transformed = self.transform(image=img)
+                img = transformed["image"]
+        return img, torch.transpose(label,2,1).transpose(0,1)
 
     def __len__(self):
         return len(self.images_path)
