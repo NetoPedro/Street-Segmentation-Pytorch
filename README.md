@@ -6,8 +6,8 @@ In this project I will attempt perform semantic segmentation of street view imag
 
 # Results 
 
+[!](https://player.vimeo.com/video/501163263 "Example 1 - Click to Watch!")
 
-<iframe src="https://player.vimeo.com/video/501163263" width="640" height="564" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
 
 ## U-Net
 
