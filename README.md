@@ -7,9 +7,13 @@ In this project I will attempt perform semantic segmentation of street view imag
 # Results 
 
 
-<video width="320" height="240" controls>
-  <source src="video1.mp4" type="video/mp4">
-</video>
+<p><div class="embed-responsive embed-responsive-16by9"><iframe class="embed-responsive-item" id="vimeoplayer" type="text/html" width="500" height="281"
+  src="//player.vimeo.com/video/501163263"
+  frameborder="0"/></div></p>
+
+<p><div class="embed-responsive embed-responsive-16by9"><iframe class="embed-responsive-item" id="vimeoplayer" type="text/html" width="500" height="281"
+  src="//player.vimeo.com/video/501163349"
+  frameborder="0"/></div></p>
 
 ## U-Net
 
