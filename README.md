@@ -6,6 +6,10 @@ In this project I will attempt perform semantic segmentation of street view imag
 
 # Results 
 
+
+![](video1.mp4)
+![](video2.mp4)
+
 ## U-Net
 
 Predicted             | Ground Truth
