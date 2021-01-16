@@ -6,9 +6,8 @@ In this project I will attempt perform semantic segmentation of street view imag
 
 # Results 
 
-[!](https://player.vimeo.com/video/501163263 "Example 1 - Click to Watch!")
 
-
+[![Example 1](https://imgur.com/m2OrHSu.png)](https://player.vimeo.com/video/501163263 "Example 1 - Click to Watch!")
 ## U-Net
 
 Predicted             | Ground Truth
